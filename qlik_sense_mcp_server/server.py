@@ -52,6 +52,8 @@ from .tools.engine import (  # noqa: F401
     get_app_sheet_objects,
     get_app_sheets,
     get_app_variables,
+    get_data_connections,
+    get_source_structure,
     search_app,
 )
 from .tools.tasks import (  # noqa: F401

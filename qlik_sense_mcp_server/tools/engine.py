@@ -12,6 +12,7 @@ from . import context
 from .schema import (Filter, Measure, Metric, Query, Scope)
 from ..utils import bare_field_name
 from ..engine.objects import public as public_object
+from ..engine.sources import file_format, is_file_path
 from .helpers import (
     _check,
     _tool,
@@ -1490,4 +1491,178 @@ def search_app(app_id: str, term: str, fields: Optional[List[str]] = None,
         return _ok(result)
     except Exception as ex:
         return _err(str(ex), app_id=app_id, term=term,
+                    error_category="engine_api_error")
+
+
+# ─── data sources: structure only ────────────────────────────────────────────
+
+SOURCE_LIST_LIMIT = 200
+SOURCE_FILE_TABLES = 50
+
+
+def _narrow(items: List[Dict[str, Any]], name_pattern: Optional[str],
+            limit: int) -> Dict[str, Any]:
+    """Filter a list of named items by wildcard and cap it, saying what was left out."""
+    if name_pattern:
+        regex = _wildcard_to_regex(name_pattern, False)
+        items = [i for i in items if regex.match(str(i.get("name", "")))]
+    total = len(items)
+    reply: Dict[str, Any] = {"items": items[:limit], "total": total}
+    if total > limit:
+        reply["truncated"] = True
+        reply["note"] = f"{total - limit} more; narrow with name_pattern or raise limit."
+    return reply
+
+
+@_tool()
+@_timed
+@_engine_serialised
+def get_data_connections(app_id: str) -> str:
+    """
+    List the data connections this identity can use from an app.
+
+    WHEN TO USE
+        To learn which `lib://<name>/...` a load script may refer to, and
+        which of them are folders and which are databases, before looking
+        inside one with `get_source_structure`.
+
+    WHEN NOT TO USE
+        To see what an app already loaded - `get_app_details` has its tables.
+
+    Args:
+        app_id: application GUID, from `get_apps`. The list is taken in its
+            context: some connections exist only for one app.
+
+    Returns:
+        `connections`, each `name`, `type`, `kind` (`folder` or `database`)
+        and, where the connection string says so, `path` (a folder),
+        `provider`, `driver` or `dsn`; `count`.
+
+    Does not return:
+        Connection strings, users or passwords: they can carry credentials.
+        Nor any data.
+    """
+    e = _check()
+    if e:
+        return e
+    try:
+        app_handle = context.engine_api.ensure_app(app_id, no_data=False)
+        connections = context.engine_api.list_connections(app_handle)
+        return _ok({"app_id": app_id, "count": len(connections), "connections": connections})
+    except Exception as ex:
+        return _err(str(ex), app_id=app_id, error_category="engine_api_error")
+
+
+@_tool()
+@_timed
+@_engine_serialised
+def get_source_structure(
+    app_id: str,
+    connection: str,
+    path: Optional[str] = None,
+    database: Optional[str] = None,
+    owner: str = "",
+    table: Optional[str] = None,
+    file_type: Optional[str] = None,
+    name_pattern: Optional[str] = None,
+    limit: int = SOURCE_LIST_LIMIT,
+) -> str:
+    """
+    Look at the structure of a data source: folders, files, tables, field
+    names. One step at a time, never any data.
+
+    WHEN TO USE
+        To write or check a load script against what a source really holds:
+        which files a folder has, which tables a file or a database has, and
+        what their fields are called.
+
+    WHEN NOT TO USE
+        To look at values, a preview or a row count: this reads names only,
+        on purpose. Load the data into an app to see it.
+
+    Descend from the top:
+        FOLDER connection (`kind: folder` in `get_data_connections`) -
+            no `path`: the folder's contents.
+            `path` to a subfolder: its contents, each with its `lib://` path.
+            `path` to a file (`.qvd`, `.csv`, `.xlsx` ...): its tables and
+            their field names. Give `file_type` when the extension is not
+            enough.
+        DATABASE connection -
+            nothing more: the databases.
+            `database` (and `owner` where the source has schemas): its
+            tables and views.
+            `database` and `table`: the table's fields.
+
+    Args:
+        app_id: application GUID.
+        connection: connection name, with or without `lib://`.
+        path: folder or file inside a folder connection, `/`-separated.
+        database: database or schema; owner: its owner, empty when none.
+        table: table or view name.
+        file_type: QVD, QVX, CSV, EXCEL_BIFF, EXCEL_OOXML, PARQUET, JSON or
+            XML, for a file whose extension does not say.
+        name_pattern: wildcard on names, `*` or `%` (`day_2024_*`),
+            case-insensitive.
+        limit: most items returned. Default 200.
+
+    Returns:
+        `level` (`folder`, `file`, `databases`, `tables` or `fields`) and
+        `items` with `total`, `truncated` and a `note` when cut; for a file,
+        `tables` each with its `fields`. A field is `{name}` plus `type` only
+        where the source reports one. QVD files and most ODBC drivers give
+        names only, so a missing type is not text.
+
+    Does not return:
+        Data of any kind, and not the connection string.
+    """
+    e = _check()
+    if e:
+        return e
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        return _err(f"limit={limit!r} is not a count of at least 1.",
+                    error_category="invalid_argument")
+    try:
+        engine = context.engine_api
+        app_handle = engine.ensure_app(app_id, no_data=False)
+        connections = engine.list_connections(app_handle)
+        wanted = connection.strip()
+        if wanted.lower().startswith("lib://"):
+            wanted = wanted[6:].split("/", 1)[0]
+        known = next((c for c in connections if str(c["name"]).lower() == wanted.lower()), None)
+        if known is None:
+            return _err(f"No connection {connection!r}.", app_id=app_id,
+                        error_category="invalid_argument")
+        name = known["name"]
+        reply: Dict[str, Any] = {"app_id": app_id, "connection": name, "kind": known["kind"]}
+
+        if known["kind"] == "folder":
+            if is_file_path(path, file_type):
+                file_format(path, file_type)         # refuse an unknown format before asking
+                reply.update(level="file", path=path, **engine.source_file(
+                    app_handle, name, path, file_type, SOURCE_FILE_TABLES))
+            else:
+                items = engine.source_folder(app_handle, name, path or "")
+                for item in items:
+                    item["lib"] = "lib://{}/{}".format(
+                        name, "/".join(part for part in (path or "", item["name"]) if part))
+                reply.update(level="folder", path=path or "",
+                             **_narrow(items, name_pattern, limit))
+        elif not database:
+            reply.update(level="databases", **_narrow(
+                engine.source_databases(app_handle, name), name_pattern, limit))
+        elif not table:
+            reply.update(level="tables", database=database, owner=owner, **_narrow(
+                engine.source_tables(app_handle, name, database, owner), name_pattern, limit))
+        else:
+            shown = _narrow(engine.source_table_fields(
+                app_handle, name, database, owner, table), name_pattern, limit)
+            reply.update(level="fields", database=database, owner=owner, table=table, **shown)
+            if shown["items"] and not any("type" in f for f in shown["items"]):
+                reply["note"] = "This source reports field names only, not types."
+        return _ok(reply)
+    except ValueError as ex:
+        return _err(str(ex), app_id=app_id, connection=connection,
+                    error_category="invalid_argument")
+    except Exception as ex:
+        return _err(str(ex), app_id=app_id, connection=connection,
                     error_category="engine_api_error")

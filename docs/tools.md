@@ -1,6 +1,6 @@
 # Tools
 
-The server exposes up to **28** MCP tools, grouped into three areas:
+The server exposes up to **30** MCP tools, grouped into three areas:
 
 - **Repository API** — fast metadata via Qlik Repository (HTTP/QRS).
 - **Engine API** — data and load script via Qlik Engine (WebSocket).
@@ -16,12 +16,12 @@ overrides the default in either direction; see
 
 | Mode | Tools registered |
 |------|------------------|
-| certificate | 28 — everything below |
-| certificate, `QLIK_TASK_TOOLS=false` | 14 — analysis only |
-| JWT (virtual proxy) | 14 — analysis only |
-| JWT, `QLIK_TASK_TOOLS=true` | 28 — only if this identity has QRS admin rights, otherwise task calls 403 |
-| form (login/password via virtual proxy) | 14 — analysis only |
-| form, `QLIK_TASK_TOOLS=true` | 28 — same caveat as JWT above |
+| certificate | 30 — everything below |
+| certificate, `QLIK_TASK_TOOLS=false` | 16 — analysis only |
+| JWT (virtual proxy) | 16 — analysis only |
+| JWT, `QLIK_TASK_TOOLS=true` | 30 — only if this identity has QRS admin rights, otherwise task calls 403 |
+| form (login/password via virtual proxy) | 16 — analysis only |
+| form, `QLIK_TASK_TOOLS=true` | 30 — same caveat as JWT above |
 
 A tool the caller cannot use is not free: its name and description sit
 in the model's context, and a model that reads about task administration
@@ -56,6 +56,8 @@ categories. The lists below are a quick map only.
 | `get_app_field_statistics` | Field statistics via a measures-only hypercube. Defaults to **light** mode (count distinct, non-null count, null count, total count, min, max, null %, completeness — the null share comes from `NullCount()`, not from subtracting one non-null count from another). Pass `full=true` to also compute avg / sum / median / mode / stdev — slow on big fact tables and meaningless for date/text fields. |
 | `engine_query` | **The main data-analysis tool.** A query stated rather than written: `group_by` names the grouping fields, `metrics` the aggregations (`{"field": "Amount", "agg": "sum"}`), `filters` the period or values to narrow to. The server writes the Qlik expressions, proves the filters select something, and reports the period each one actually covered. `queries` takes a list of independent questions — different groupings, different measures, different filters — and runs the whole list over three round-trips rather than three per question. A master measure is named with `{"master": "<name>"}`; with `filters` it takes them as an outer set in front of it, and `warnings` says when the measure keeps a filter out. Past the cap of 200 expressions, a batch that differs only in one filter comes back with `one_query`, the grouped query that answers all of it. |
 | `engine_create_hypercube` | The same shape, with the expressions written by the caller: for a nested aggregation, `Aggr()`, `FirstSortedValue`, `P()`/`E()` set analysis, or a calculated dimension. Ranking is `sort_by` + `sort_order` + `limit`. Rows with a NULL dimension value (Qlik's `"-"`) are kept unless `exclude_null_dimensions` says otherwise. Hard limits: `limit <= 5000`, `columns * limit <= 9900`. `filters` works here too, applied wherever a measure carries the `{filter}` marker: in front of the whole expression (`{filter} [Revenue] / [Orders]`) it is an outer set that reaches every aggregation inside, master measures included; inside one aggregation (`Sum({filter} Amount)`) it narrows that one; next to a set of the expression's own (`Sum({filter} {<Flag={1}>} Amount)`) it is merged into that set, since Qlik reads one of two sets side by side. With no marker in any measure, every measure takes the filters in front of it. `warnings` names an expression that sets a filtered field itself, counts over a set with an identifier, holds `$(=...)` or picks values with P()/E() over sets the filter does not reach; `period_check` and `fan_out_check` are the same as in `engine_query`. |
+| `get_data_connections` | The data connections this identity can use from an app: `name`, `type`, `kind` (`folder` or `database`) and, where known, the folder's `path`, or the connection's `provider`, `driver` or `dsn`. Never the connection string, which can carry hosts, users and tokens. |
+| `get_source_structure` | The structure of a source, one step at a time, **never any data**: a folder's files and subfolders (each with its `lib://` path), a file's tables and field names (QVD, QVX, CSV, Excel, Parquet, JSON, XML), a database's databases, its tables and views, and a table's fields. `name_pattern` narrows by wildcard, `limit` caps the list and `truncated` says when it did. A field has a `type` only where the source reports one; QVD files and most ODBC drivers give names only. |
 
 ## Task management (Repository API)
 

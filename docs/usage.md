@@ -156,7 +156,7 @@ SLICE-BY-CATEGORY pattern.
 
 ## Tool list
 
-See [tools.md](tools.md) for the full inventory of all 28 MCP tools, the
+See [tools.md](tools.md) for the full inventory of all 30 MCP tools, the
 transport (Repository / Engine / Tasks) each one uses, and a short
 description of when to call it. Detailed parameter docs live in the
 Python docstrings — every tool returns its full docstring via the

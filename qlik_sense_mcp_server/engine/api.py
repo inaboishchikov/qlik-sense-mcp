@@ -34,6 +34,7 @@ from .hypercube import EngineHypercubeMixin
 from .layers import EngineLayersMixin
 from .queries import EngineQueriesMixin
 from .sheets import EngineSheetsMixin
+from .sources import EngineSourcesMixin
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ class QlikEngineAPI(
     EngineSheetsMixin,
     EngineAppModelMixin,
     EngineLayersMixin,
+    EngineSourcesMixin,
 ):
     """Client for Qlik Sense Engine API using WebSocket."""
 

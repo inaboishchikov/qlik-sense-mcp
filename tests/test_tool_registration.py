@@ -38,7 +38,7 @@ ANALYSIS_TOOLS = {
     "get_app_field_statistics", "engine_get_field_range", "get_app_field",
     "get_app_variables", "get_app_sheets", "get_app_sheet_objects",
     "get_app_object", "engine_query", "engine_create_hypercube",
-    "search_app",
+    "search_app", "get_data_connections", "get_source_structure",
 }
 
 

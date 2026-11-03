@@ -6,6 +6,20 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [Unreleased]
 
+### Added
+
+- `get_data_connections` and `get_source_structure`: what a load script can
+  read from, without reading it. The first lists the connections an
+  identity can use from an app - name, kind (folder or database) and, where
+  the connection string says so, a folder's path or a connector's provider,
+  driver or DSN; never the string itself, which carries hosts, users and
+  tokens. The second descends one step at a time: a folder's files and
+  subfolders, each with its `lib://` path; a file's tables and field names;
+  a database's databases, tables and views, and a table's fields. It asks
+  Engine for names only - no preview, no sample, no row - and a field has a
+  `type` only where the source reports one (QVD files and most ODBC drivers
+  give names only). Both are on in every authentication mode: they read.
+
 ## [2.4.0] - 2026-09-30
 
 ### Added
