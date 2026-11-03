@@ -472,6 +472,14 @@ class QlikRepositoryAPI:
         names = result.get("columnNames") or [key for key, _ in columns]
         return [dict(zip(names, row)) for row in result.get("rows", [])]
 
+    def upload_app_content(self, app_id: str, filename: str, data: bytes,
+                           content_type: str) -> Dict[str, Any]:
+        """Put a file into an app's content library (`/appcontent/<app>/<file>`)."""
+        return self._make_request(
+            "POST", f"appcontent/{app_id}/uploadfile",
+            params={"externalpath": filename, "overwrite": "true"},
+            content=data, headers={"Content-Type": content_type})
+
     def get_about(self) -> Dict[str, Any]:
         """Get Qlik Sense server information via QRS /qrs/about endpoint."""
         return self._make_request("GET", "about")

@@ -19,6 +19,24 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   Engine for names only - no preview, no sample, no row - and a field has a
   `type` only where the source reports one (QVD files and most ODBC drivers
   give names only). Both are on in every authentication mode: they read.
+- App-authoring tools, off by default (`QLIK_WRITE_TOOLS=true` turns them on in
+  any authentication mode): `create_app`, `reload_app`, `set_app_script`,
+  `patch_app_script`, `create_sheet`, `update_sheet`, `delete_sheet`,
+  `add_sheet_object`, `update_sheet_object`, `delete_sheet_object`,
+  `get_app_options`, `set_app_options` and `upload_app_image`, with
+  `validate_object`, `validate_sheet` and `check_app_script` to check what
+  they built. A script is syntax-checked and restored on an error; a chart is
+  read back from Engine and removed if its field or expression is invalid, so
+  nothing broken is saved. KPI, table, pivot table, bar, line, pie and combo
+  charts, filter panes and containers are built from typed dimension and
+  measure specs and placed on the sheet grid automatically. Engine accepts an
+  object the client cannot draw - an empty table, empty charts, an unfinished
+  filter pane - so `validate_object` and `validate_sheet` look for the
+  structural gaps behind that, and were checked against objects made by Qlik's
+  own editor, none of which they flag. `reload_app` returns the failing
+  statement and the load log. `check_app_script` also scans for what Qlik's
+  own syntax check lets through: unclosed brackets and strings, a missing
+  semicolon, a `lib://` connection the identity does not have.
 
 ## [2.4.0] - 2026-09-30
 

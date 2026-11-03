@@ -56,6 +56,26 @@ from .tools.engine import (  # noqa: F401
     get_source_structure,
     search_app,
 )
+from .tools.authoring import (  # noqa: F401
+    add_sheet_object,
+    create_app,
+    create_sheet,
+    delete_sheet,
+    delete_sheet_object,
+    get_app_options,
+    patch_app_script,
+    reload_app,
+    set_app_options,
+    set_app_script,
+    update_sheet,
+    update_sheet_object,
+    upload_app_image,
+)
+from .tools.development import (  # noqa: F401
+    check_app_script,
+    validate_object,
+    validate_sheet,
+)
 from .tools.tasks import (  # noqa: F401
     create_task,
     create_task_schedule,
@@ -200,6 +220,15 @@ def _print_help():
                 default in certificate mode; set QLIK_TASK_TOOLS=true to
                 register them in JWT/form mode too, for an identity
                 verified to hold those rights"""
+    if context._WRITE_TOOLS_ENABLED:
+        authoring_section = """    Authoring:  create_app, reload_app, get_app_options, set_app_options,
+                upload_app_image, set_app_script, patch_app_script,
+                check_app_script, create_sheet, update_sheet, delete_sheet,
+                add_sheet_object, update_sheet_object, delete_sheet_object,
+                validate_object, validate_sheet"""
+    else:
+        authoring_section = """    Authoring:  not registered — set QLIK_WRITE_TOOLS=true to let the model
+                change load scripts, sheets, charts and settings"""
     sys.stderr.write(f"""
 Qlik Sense MCP Server v{__version__} — Model Context Protocol server for Qlik Sense Enterprise APIs
 
@@ -214,8 +243,10 @@ TOOLS ({len(mcp._tool_manager._tools)} registered in the current auth mode):
     Engine:     engine_query, engine_create_hypercube, engine_get_field_range,
                 get_app_script, get_app_field_statistics, get_app_field,
                 get_app_variables, get_app_sheets, get_app_sheet_objects,
-                get_app_object, search_app
+                get_app_object, search_app, get_data_connections,
+                get_source_structure
 {tasks_section}
+{authoring_section}
 
 GitHub: https://github.com/bintocher/qlik-sense-mcp
 """)

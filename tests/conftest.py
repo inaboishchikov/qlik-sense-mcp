@@ -178,9 +178,12 @@ def _reimport_server():
     from qlik_sense_mcp_server.tools import engine as engine_tools
     from qlik_sense_mcp_server.tools import repository as repository_tools
     from qlik_sense_mcp_server.tools import tasks as task_tools
+    from qlik_sense_mcp_server.tools import authoring as authoring_tools
+    from qlik_sense_mcp_server.tools import development as development_tools
 
     importlib.reload(context)
-    for tool_module in (repository_tools, engine_tools, task_tools):
+    for tool_module in (repository_tools, engine_tools, task_tools,
+                        authoring_tools, development_tools):
         importlib.reload(tool_module)
     return importlib.reload(srv)
 

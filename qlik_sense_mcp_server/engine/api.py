@@ -26,7 +26,10 @@ from ..config import (
 from ..jwt_session import JwtSession
 from ..form_session import FormSession
 from .app_model import EngineAppModelMixin
+from .app_options import EngineAppOptionsMixin
+from .authoring import EngineAuthoringMixin
 from .connection import EngineConnectionMixin
+from .development import EngineDevelopmentMixin
 from .expressions import EngineExpressionsMixin
 from .fields import EngineFieldsMixin
 from .filters import EngineFiltersMixin
@@ -50,6 +53,9 @@ class QlikEngineAPI(
     EngineAppModelMixin,
     EngineLayersMixin,
     EngineSourcesMixin,
+    EngineAuthoringMixin,
+    EngineAppOptionsMixin,
+    EngineDevelopmentMixin,
 ):
     """Client for Qlik Sense Engine API using WebSocket."""
 

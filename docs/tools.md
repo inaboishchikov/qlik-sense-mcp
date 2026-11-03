@@ -81,6 +81,34 @@ categories. The lists below are a quick map only.
 Write operations are clearly flagged in the docstrings; ask for explicit
 user confirmation in the calling client before invoking them.
 
+## App authoring (Engine API, opt-in)
+
+Off unless `QLIK_WRITE_TOOLS=true`, in every authentication mode: they change
+an app, and Qlik's own access rules still decide whether the identity may. A
+published app's sheets and an Analyzer licence are refused by Qlik; work in an
+unpublished copy. Every change is checked against Engine before it is saved: a
+load script is syntax-checked and put back on an error, and a chart is created,
+its layout read back, and removed again if a field is missing or an expression
+does not parse, so nothing broken is saved.
+
+| Tool | Purpose |
+|------|---------|
+| `create_app` | Create an unpublished app in the personal space, optionally with a syntax-checked script and a first reload. **Write operation.** |
+| `reload_app` | Run the load script in this session and save the data if it worked. Returns `errors` (message and the failing statement), the load `log` and `seconds`. For production apps use `start_task`. **Write operation.** |
+| `set_app_script` | Replace the whole load script. Syntax-checked; on an error the old script is restored and the errors returned. **Write operation.** |
+| `patch_app_script` | Replace one piece of the script. `find` must occur exactly once (or pass `replace_all`). **Write operation.** |
+| `check_app_script` | Try a script, or the current one, without saving or running it: Qlik's syntax check plus a scan for what it misses (unclosed brackets and strings, a missing semicolon, a `lib://` connection this identity does not have). |
+| `create_sheet`, `update_sheet`, `delete_sheet` | Add an empty sheet, rename it or change its description and thumbnail, delete it with its objects. **Write operations; `delete_sheet` is destructive.** |
+| `add_sheet_object` | Add a `kpi`, `table`, `pivot-table`, `barchart`, `linechart`, `piechart`, `combochart`, `filterpane` or `container`. Dimensions and measures are typed (`{field \| expression \| library_id}`, `{expression \| library_id, format, sort}`; a combo chart's measures also take `series` and `axis`); placement is automatic on the 24-column grid or given as `position`. A container takes `children`: charts with a `label` and an optional show `condition`. `extra_properties` merges raw Qlik properties for styling. **Write operation.** |
+| `update_sheet_object` | Retitle, change dimensions and measures (whole lists), move or resize. Kept only if Engine accepts it. **Write operation.** |
+| `delete_sheet_object` | Remove one object and its slot on the sheet. **Destructive.** |
+| `get_app_options`, `set_app_options` | The settings of the app's options dialog: theme, hover and context menus, chart animation, sheet title style, thumbnail. They live in a hidden `appprops` object, not in the app layout. **`set_app_options` is a write operation.** |
+| `upload_app_image` | Upload a png, jpg, gif or svg (up to 5 MB) from the machine running the server into the app's content library; returns the path for a thumbnail. **Write operation.** |
+| `validate_object`, `validate_sheet` | Check one object, or a sheet and everything on it, for what stops it drawing: Engine answers with data and no error and the client shows nothing. `error` is broken or Engine-reported, `warning` differs from what Qlik's editor writes, `info` is an unmet calculation condition. Also finds an object on no cell (it exists but is not shown), overlapping or off-grid cells. |
+
+Not covered: scatter, map and other chart types, master item creation,
+copying and publishing apps, Insight Advisor.
+
 ## Response envelope
 
 Every tool wraps its result in:

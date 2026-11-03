@@ -25,6 +25,11 @@ so `QLIK_TASK_TOOLS=true` turns them on for an identity that does hold it.
 
 Full list with descriptions: [`docs/tools.md`](docs/tools.md).
 
+Sixteen more tools **edit** an app - its load script, sheets, charts and
+settings - and check what they built. They are off in every mode and turned on
+with `QLIK_WRITE_TOOLS=true`; see
+[App authoring](docs/tools.md#app-authoring-engine-api-opt-in).
+
 The main analysis call takes the question, not the Qlik syntax for it:
 
 ```jsonc

@@ -23,6 +23,8 @@ from qlik_sense_mcp_server.tools import context
 from qlik_sense_mcp_server.tools import engine as engine_tools
 from qlik_sense_mcp_server.tools import repository as repository_tools
 from qlik_sense_mcp_server.tools import tasks as task_tools
+from qlik_sense_mcp_server.tools import authoring as authoring_tools
+from qlik_sense_mcp_server.tools import development as development_tools
 
 
 TASK_TOOLS = {
@@ -31,6 +33,14 @@ TASK_TOOLS = {
     "create_task_schedule", "get_task_executions", "get_task_script_log",
     "get_failed_tasks_with_logs", "get_task_dependencies",
     "update_task_schedule", "delete_task_schedule",
+}
+
+AUTHORING_TOOLS = {
+    "create_app", "reload_app", "get_app_options", "set_app_options",
+    "upload_app_image", "validate_object", "validate_sheet", "check_app_script",
+    "set_app_script", "patch_app_script", "create_sheet", "update_sheet",
+    "delete_sheet", "add_sheet_object", "update_sheet_object",
+    "delete_sheet_object",
 }
 
 ANALYSIS_TOOLS = {
@@ -52,7 +62,8 @@ def _reimport():
     previous host and show the previous auth mode.
     """
     module = importlib.reload(context)
-    for tool_module in (repository_tools, engine_tools, task_tools):
+    for tool_module in (repository_tools, engine_tools, task_tools,
+                        authoring_tools, development_tools):
         importlib.reload(tool_module)
     return importlib.reload(srv)
 
@@ -63,7 +74,8 @@ def reload_server(monkeypatch):
     def _reload(**env):
         for key in ("QLIK_SERVER_URL", "QLIK_JWT_TOKEN", "QLIK_USER_DIRECTORY",
                     "QLIK_USER_ID", "QLIK_PASSWORD", "QLIK_CLIENT_CERT_PATH",
-                    "QLIK_CLIENT_KEY_PATH", "QLIK_TASK_TOOLS"):
+                    "QLIK_CLIENT_KEY_PATH", "QLIK_TASK_TOOLS",
+                    "QLIK_WRITE_TOOLS"):
             monkeypatch.delenv(key, raising=False)
         for key, value in env.items():
             monkeypatch.setenv(key, value)
@@ -189,3 +201,36 @@ class TestTaskToolsSwitch:
             QLIK_TASK_TOOLS=value,
         )
         assert TASK_TOOLS <= set(module.mcp._tool_manager._tools)
+
+
+class TestWriteToolsSwitch:
+    """Authoring changes an app, so it is off in every mode until asked for."""
+
+    JWT = dict(QLIK_SERVER_URL="https://qlik.example.com/jwt",
+               QLIK_JWT_TOKEN="header.payload.signature")
+    CERT = dict(QLIK_SERVER_URL="https://qlik.example.com",
+                QLIK_USER_DIRECTORY="COMPANY", QLIK_USER_ID="svc_mcp")
+
+    @pytest.mark.parametrize("env", ["JWT", "CERT"])
+    def test_off_by_default(self, reload_server, env):
+        names = set(reload_server(**getattr(self, env)).mcp._tool_manager._tools)
+        assert not AUTHORING_TOOLS & names
+
+    @pytest.mark.parametrize("value", ["false", "0", "no", ""])
+    def test_anything_but_yes_leaves_them_out(self, reload_server, value):
+        names = set(reload_server(QLIK_WRITE_TOOLS=value, **self.JWT)
+                    .mcp._tool_manager._tools)
+        assert not AUTHORING_TOOLS & names
+
+    @pytest.mark.parametrize("value", ["true", "1", "YES"])
+    def test_on_when_asked_for(self, reload_server, value):
+        names = set(reload_server(QLIK_WRITE_TOOLS=value, **self.JWT)
+                    .mcp._tool_manager._tools)
+        assert AUTHORING_TOOLS <= names
+        assert ANALYSIS_TOOLS <= names
+
+    def test_does_not_drag_in_task_administration(self, reload_server):
+        names = set(reload_server(QLIK_WRITE_TOOLS="true", QLIK_TASK_TOOLS="false",
+                                  **self.JWT)
+                    .mcp._tool_manager._tools)
+        assert not TASK_TOOLS & names

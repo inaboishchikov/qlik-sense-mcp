@@ -213,6 +213,29 @@ elif not _CERT_MODE:
     )
 
 
+# Tools that change an app - load script, sheets, charts, settings. Off in
+# every authentication mode until the operator asks for them: the rest of the
+# server reads, and a model that can see "set_app_script" will use it.
+# Whether the identity may edit is still decided by Qlik's own access rules;
+# a published app's sheets and an Analyzer licence are refused there, not here.
+_WRITE_TOOLS_ENABLED = os.getenv("QLIK_WRITE_TOOLS", "").strip().lower() in ("true", "1", "yes")
+
+if _WRITE_TOOLS_ENABLED:
+    logger.warning(
+        "App-authoring tools are registered (QLIK_WRITE_TOOLS=true): the model can "
+        "change load scripts, sheets, charts and settings as the configured identity.")
+
+
+def _write_tool():
+    """Register a tool only when QLIK_WRITE_TOOLS asked for authoring."""
+    def decorator(fn):
+        if not _WRITE_TOOLS_ENABLED:
+            return fn
+        from .helpers import _tool  # helpers imports this module
+        return _tool()(fn)
+    return decorator
+
+
 def _task_admin_tool():
     """Register a tool only when task administration was asked for and
     the current mode allows it — see `_TASK_TOOLS_ENABLED` above."""

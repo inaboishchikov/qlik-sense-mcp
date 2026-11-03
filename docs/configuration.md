@@ -102,6 +102,7 @@ and form mode go through the virtual proxy on the port in
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `QLIK_WRITE_TOOLS` | `false` in every mode | Register the 16 app-authoring tools (see [tools.md](tools.md#app-authoring-engine-api-opt-in)): load scripts, sheets, charts, app settings, with `validate_object`, `validate_sheet` and `check_app_script`. They change an app as the configured identity, so they are off until asked for. Qlik's own access rules still apply: a published app's sheets and an Analyzer licence are refused there. Use an unpublished copy of the app. |
 | `QLIK_TASK_TOOLS` | `true` in certificate mode, `false` in JWT/form mode | Register the 14 reload-task tools. They need QRS repository-admin rights — a QMC role, not a property of the authentication method — so they default to on in certificate mode (which normally runs as a trusted admin identity) and off in JWT/form mode (which normally authenticates an ordinary analyst). Set to `false` to leave them out of certificate mode too, for an identity that only reads data. Set to `true` to turn them on in JWT or form mode as well — do this only once you have verified the identity behind that JWT/password does hold QRS admin rights, since every call will otherwise fail with 403. |
 
 ## Logging
