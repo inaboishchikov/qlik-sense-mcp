@@ -84,9 +84,9 @@ user confirmation in the calling client before invoking them.
 ## App authoring (Engine API, opt-in)
 
 Off unless `QLIK_WRITE_TOOLS=true`, in every authentication mode: they change
-an app, and Qlik's own access rules still decide whether the identity may. A
-published app's sheets and an Analyzer licence are refused by Qlik; work in an
-unpublished copy. Every change is checked against Engine before it is saved: a
+an app, and Qlik's own access rules still decide whether the identity may. The
+server refuses every change to a published app, and to any app it cannot check,
+before opening it; work in an unpublished copy. Every change is checked against Engine before it is saved: a
 load script is syntax-checked and put back on an error, and a chart is created,
 its layout read back, and removed again if a field is missing or an expression
 does not parse, so nothing broken is saved.

@@ -8,6 +8,12 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ### Added
 
+- A published app is never edited. Every tool that changes an existing app asks
+  the repository whether it is published before opening it, and refuses when
+  it is, when the answer is missing, or when the check fails. Qlik refuses a
+  saved load script on a published app but accepts a sheet, saved as the
+  user's own, so the server no longer leaves that to it. `create_app` and the
+  read-only tools are not affected.
 - `get_data_connections` and `get_source_structure`: what a load script can
   read from, without reading it. The first lists the connections an
   identity can use from an app - name, kind (folder or database) and, where

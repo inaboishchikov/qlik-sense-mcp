@@ -31,6 +31,37 @@ def _open(app_id: str) -> int:
     return context.engine_api.ensure_app(app_id, no_data=False)
 
 
+def ensure_editable(app_id: str) -> None:
+    """Refuse to go on when the app is published, or when that cannot be told.
+
+    Qlik refuses some changes to a published app (a saved load script) and
+    accepts others (a sheet, saved as the user's own), so what the server
+    would do there depends on rules it does not see. It does not edit a
+    published app at all. A failed or unclear answer from the repository
+    counts as "do not edit": a check that cannot run must not let a write by.
+    """
+    try:
+        app = context.repo_api.get_app_by_id(app_id)
+    except Exception as ex:
+        raise ValueError(
+            f"Could not tell whether app {app_id} is published ({ex}); nothing was changed"
+        ) from ex
+    published = app.get("published") if isinstance(app, dict) else None
+    if published is True:
+        raise ValueError(
+            f"App {app_id} is published, and the server does not edit published apps; "
+            "nothing was changed")
+    if published is not False:
+        raise ValueError(
+            f"Could not tell whether app {app_id} is published; nothing was changed")
+
+
+def _open_for_edit(app_id: str) -> int:
+    """`_open` for a tool that changes the app, after the published check."""
+    ensure_editable(app_id)
+    return _open(app_id)
+
+
 def _failed(message: str, ex: Exception, **extra: Any) -> str:
     text = str(ex) or repr(ex)
     if isinstance(ex, ValueError) or text.startswith("No "):
@@ -80,7 +111,7 @@ def create_app(name: str, script: Optional[str] = None, reload: bool = False) ->
     reply: Dict[str, Any] = {"app_id": app_id, "name": name.strip(),
                              "script_saved": False, "reloaded": False}
     try:
-        handle = _open(app_id)
+        handle = _open(app_id)       # just created here, so unpublished by construction
         if script:
             outcome = context.engine_api.replace_script_checked(handle, script)
             reply["script_saved"] = outcome["saved"]
@@ -125,7 +156,7 @@ def reload_app(app_id: str) -> str:
     if e:
         return e
     try:
-        outcome = context.engine_api.reload_logged(_open(app_id))
+        outcome = context.engine_api.reload_logged(_open_for_edit(app_id))
     except Exception as ex:
         return _failed("Could not reload the app", ex, app_id=app_id)
     reply: Dict[str, Any] = {"app_id": app_id, **outcome}
@@ -147,7 +178,7 @@ def set_app_script(app_id: str, script: str, check_syntax: bool = True) -> str:
     WHEN NOT TO USE
         To run the script. This saves it; the data changes only when the app
         is reloaded (`start_task`, or a reload in the hub).
-        On a published app: Qlik refuses.
+        On a published app: refused by the server, nothing is changed.
 
     Read the current script first with `get_app_script`: this replaces it
     entirely.
@@ -177,7 +208,7 @@ def set_app_script(app_id: str, script: str, check_syntax: bool = True) -> str:
     if e:
         return e
     try:
-        handle = _open(app_id)
+        handle = _open_for_edit(app_id)
         outcome = context.engine_api.replace_script_checked(handle, script, check=check_syntax)
     except Exception as ex:
         return _failed("Could not set the script", ex, app_id=app_id)
@@ -229,7 +260,7 @@ def patch_app_script(app_id: str, find: str, replace: str,
     if not find:
         return _err("`find` must not be empty", error_category="invalid_argument")
     try:
-        handle = _open(app_id)
+        handle = _open_for_edit(app_id)
         current = context.engine_api.get_script(handle) or ""
         count = current.count(find)
         if count == 0:
@@ -260,7 +291,7 @@ def create_sheet(app_id: str, title: str, description: str = "") -> str:
         Before `add_sheet_object`, which needs a sheet to put charts on.
 
     WHEN NOT TO USE
-        On a published app: Qlik refuses.
+        On a published app: refused by the server, nothing is changed.
 
     Args:
         app_id: application GUID, unpublished.
@@ -276,7 +307,8 @@ def create_sheet(app_id: str, title: str, description: str = "") -> str:
     if not title or not title.strip():
         return _err("`title` must not be empty", error_category="invalid_argument")
     try:
-        sheet_id = context.engine_api.create_sheet(_open(app_id), title.strip(), description)
+        sheet_id = context.engine_api.create_sheet(
+            _open_for_edit(app_id), title.strip(), description)
     except Exception as ex:
         return _failed("Could not create the sheet", ex, app_id=app_id)
     return _ok({"app_id": app_id, "sheet_id": sheet_id, "title": title.strip()})
@@ -314,7 +346,7 @@ def update_sheet(app_id: str, sheet_id: str, title: Optional[str] = None,
         if thumbnail_url is not None:
             check_content_url(thumbnail_url, "thumbnail_url")
         result = context.engine_api.update_sheet(
-            _open(app_id), sheet_id, title, description, thumbnail_url)
+            _open_for_edit(app_id), sheet_id, title, description, thumbnail_url)
     except Exception as ex:
         return _failed("Could not update the sheet", ex, app_id=app_id, sheet_id=sheet_id)
     return _ok({"app_id": app_id, "sheet_id": sheet_id, **result})
@@ -341,7 +373,7 @@ def delete_sheet(app_id: str, sheet_id: str) -> str:
     if e:
         return e
     try:
-        result = context.engine_api.delete_sheet(_open(app_id), sheet_id)
+        result = context.engine_api.delete_sheet(_open_for_edit(app_id), sheet_id)
     except Exception as ex:
         return _failed("Could not delete the sheet", ex, app_id=app_id, sheet_id=sheet_id)
     return _ok({"app_id": app_id, "sheet_id": sheet_id, **result})
@@ -441,7 +473,7 @@ def add_sheet_object(
         extra = check_extra_properties(extra_properties)
         place = normalise_position(position, DEFAULT_SIZE[object_type])
         result = context.engine_api.add_object(
-            _open(app_id), sheet_id, object_type, title, subtitle,
+            _open_for_edit(app_id), sheet_id, object_type, title, subtitle,
             dimensions or [], measures or [], fields or [], place, extra, children or [])
     except Exception as ex:
         return _failed("Could not add the object", ex, app_id=app_id, sheet_id=sheet_id)
@@ -507,7 +539,7 @@ def update_sheet_object(
         if place is not None:
             place = {k: v for k, v in place.items() if v is not None}
         result = context.engine_api.update_object(
-            _open(app_id), object_id, sheet_id, title, subtitle,
+            _open_for_edit(app_id), object_id, sheet_id, title, subtitle,
             dimensions, measures, place or None, extra)
     except Exception as ex:
         return _failed("Could not update the object", ex, app_id=app_id, object_id=object_id)
@@ -538,7 +570,7 @@ def delete_sheet_object(app_id: str, object_id: str,
     if e:
         return e
     try:
-        result = context.engine_api.delete_object(_open(app_id), object_id, sheet_id)
+        result = context.engine_api.delete_object(_open_for_edit(app_id), object_id, sheet_id)
     except Exception as ex:
         return _failed("Could not delete the object", ex, app_id=app_id, object_id=object_id)
     return _ok({"app_id": app_id, **result})
@@ -604,7 +636,7 @@ def set_app_options(
         options dialog. Only what you pass is changed.
 
     WHEN NOT TO USE
-        On a published app: Qlik refuses.
+        On a published app: refused by the server, nothing is changed.
         To turn Insight Advisor off: not covered.
 
     Args:
@@ -642,7 +674,7 @@ def set_app_options(
             thumbnail_url=thumbnail_url)
         if not changes and thumbnail is None:
             return _err("Nothing to change", error_category="invalid_argument")
-        result = context.engine_api.set_app_options(_open(app_id), changes, thumbnail)
+        result = context.engine_api.set_app_options(_open_for_edit(app_id), changes, thumbnail)
     except Exception as ex:
         return _failed("Could not change the app options", ex, app_id=app_id)
     return _ok({"app_id": app_id, **{k: v for k, v in result.items() if k != "raw"}})
@@ -701,6 +733,7 @@ def upload_app_image(app_id: str, image_path: str, name: Optional[str] = None) -
     content_type = _IMAGE_TYPES.get(os.path.splitext(filename)[1].lower()) \
         or mimetypes.guess_type(filename)[0] or _IMAGE_TYPES[ext]
     try:
+        ensure_editable(app_id)
         result = context.repo_api.upload_app_content(app_id, filename, data, content_type)
     except Exception as ex:
         return _failed("Could not upload the image", ex, app_id=app_id)

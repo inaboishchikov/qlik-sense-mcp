@@ -167,6 +167,7 @@ class TestUploadTool:
     def repo(self, monkeypatch):
         calls = []
         stub = SimpleNamespace(
+            get_app_by_id=lambda app_id: {"published": False},
             upload_app_content=lambda *a: calls.append(a) or {"id": "1"})
         monkeypatch.setattr(context, "repo_api", stub)
         return calls
@@ -217,6 +218,7 @@ class TestUploadTool:
 
     def test_a_server_refusal_is_reported(self, monkeypatch, tmp_path):
         monkeypatch.setattr(context, "repo_api", SimpleNamespace(
+            get_app_by_id=lambda app_id: {"published": False},
             upload_app_content=lambda *a: {"error": "HTTP 403: nope"}))
         image = tmp_path / "x.png"
         image.write_bytes(b"d")
