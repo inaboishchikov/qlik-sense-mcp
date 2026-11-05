@@ -106,6 +106,23 @@ server yourself and point the client at `http://127.0.0.1:8000/mcp` - see
 - **`QLIK_USER_ID`** — required. The username submitted to the login form.
 - **`QLIK_PASSWORD`** — required. Treat it like any other password: it is
   sent once per session bootstrap (~every 25 minutes) and never logged.
+  Keep it out of a client config that gets shared: put it in a file of its
+  own and name that file with `QLIK_ENV_FILE` (see below).
+
+### Keeping the password out of `.mcp.json`
+
+Set `QLIK_ENV_FILE` to a file in your own config directory and leave only that
+path in the client config:
+
+```json
+"env": { "QLIK_SERVER_URL": "https://qlik.example.com", "QLIK_ENV_FILE": "~/.config/skills307/.env" }
+```
+
+The file holds ordinary `NAME=value` lines (`QLIK_USER_ID`, `QLIK_PASSWORD`).
+A variable already set in the process environment wins over the file, and the
+file wins over a `.env` in the working directory. Make it readable by you
+alone (`chmod 600`); a file other users can read is still used, with a
+warning in the log. A missing file is logged and skipped.
 
 ### Optional overrides
 

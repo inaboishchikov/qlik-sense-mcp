@@ -15,7 +15,6 @@ import os
 import sys
 from typing import Optional
 
-from dotenv import load_dotenv
 
 # Ensure UTF-8 encoding on Windows (must be before any I/O)
 if sys.platform == "win32":
@@ -42,6 +41,7 @@ except ImportError:  # mcp < 2.0
 
     MCP_SDK_MAJOR = 1
 
+from ..env_file import load_settings
 from ..config import QlikSenseConfig, AUTH_MODE_JWT, AUTH_MODE_FORM, AUTH_MODE_CERTIFICATE
 from ..repository_api import QlikRepositoryAPI
 from ..engine import QlikEngineAPI
@@ -49,7 +49,7 @@ from ..jwt_session import JwtSession
 from ..form_session import FormSession
 
 # Initialize logging configuration early
-load_dotenv()
+load_settings()
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 _logging_level = getattr(logging, LOG_LEVEL, logging.INFO)

@@ -110,6 +110,7 @@ and form mode go through the virtual proxy on the port in
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `LOG_LEVEL` | `INFO` | Root log level: one of `DEBUG`, `INFO`, `WARNING`, `ERROR`. `DEBUG` is very verbose - it logs every Engine API frame, which is what you need to troubleshoot hypercube performance. |
+| `QLIK_ENV_FILE` | unset | A file of `NAME=value` settings kept outside the project, e.g. `~/.config/skills307/.env`, so a password need not sit in `.mcp.json`. A value already in the environment wins over the file; the file wins over a `.env` in the working directory. A file other users can read is used, with a warning. |
 | `QLIK_LOG_FILE` | unset | Also write the log to this file. Over stdio there is nowhere else for it to go - stdout carries the protocol and MCP clients generally swallow the server's stderr. The log records every tool call with its arguments, which is what you need to see what a model actually asked for. |
 | `QLIK_LOG_REPLIES` | `false` | Set to `true` to log what a tool returned as well as the call it answered, truncated to 4000 characters. This is the tool's own payload, logged before the envelope adds `tool_call_seconds`, `tool` and `request`; a call that raised is reported by the exception log instead and writes no reply line. Off by default: replies carry data, and data does not belong in a log unless someone asked for it. |
 

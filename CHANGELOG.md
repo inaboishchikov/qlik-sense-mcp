@@ -14,6 +14,10 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
   saved load script on a published app but accepts a sheet, saved as the
   user's own, so the server no longer leaves that to it. `create_app` and the
   read-only tools are not affected.
+- `QLIK_ENV_FILE` names a file of settings kept outside the project, so the
+  password need not be in `.mcp.json`. The environment wins over the file and
+  the file over a `.env` in the working directory; a file other users can read
+  is used with a warning, a missing one is logged and skipped.
 - `get_data_connections` and `get_source_structure`: what a load script can
   read from, without reading it. The first lists the connections an
   identity can use from an app - name, kind (folder or database) and, where
